@@ -1,18 +1,27 @@
 //! The simplest possible example that does something.
 #![allow(clippy::unnecessary_wraps)]
 
-use ggez::{Context, event, GameError, GameResult, glam::*, graphics::{self, Color}};
+mod config;
+
+use crate::config::Config;
 use ggez::conf::{WindowMode, WindowSetup};
 use ggez::graphics::Rect;
 use ggez::input::keyboard::KeyInput;
+use ggez::{
+    event,
+    glam::*,
+    graphics::{self, Color},
+    Context, GameError, GameResult,
+};
 use rand::Rng;
+use std::time::Duration;
+use std::{env, fs};
 
 const WIDTH: usize = 80;
 const HEIGHT: usize = 60;
 const FILL_RATE: f32 = 35.0;
 
 struct MainState {
-    pos_x: f32,
     rect: graphics::Mesh,
     alive: Vec<Vec<bool>>,
     start: bool,
@@ -27,18 +36,22 @@ impl MainState {
             Color::WHITE,
         )?;
         let mut v = vec![vec![false; HEIGHT]; WIDTH];
-        let mut rng = rand::thread_rng();
-        // for i in 0..WIDTH {
-        //     for j in 0..HEIGHT {
-        //         v[i][j] = rng.gen::<f32>() < FILL_RATE / 100.0;
-        //     }
-        // }
         init(&mut v);
-        Ok(MainState { pos_x: 0.0, rect, alive: v, start: true })
+        Ok(MainState {
+            rect,
+            alive: v,
+            start: true,
+        })
     }
 }
 
 fn init(v: &mut Vec<Vec<bool>>) {
+    // let mut rng = rand::thread_rng();
+    // for i in 0..WIDTH {
+    //     for j in 0..HEIGHT {
+    //         v[i][j] = rng.gen::<f32>() < FILL_RATE / 100.0;
+    //     }
+    // }
     v[40][30] = true;
     v[40][31] = true;
     v[40][32] = true;
@@ -77,7 +90,6 @@ fn neighbor(v: &Vec<Vec<bool>>, x: &usize, y: &usize) -> u8 {
 
 fn gof(v: &mut Vec<Vec<bool>>) {
     let mut target = vec![vec![false; HEIGHT]; WIDTH];
-    std::thread::sleep_ms(100);
     for i in 0..WIDTH {
         for j in 0..HEIGHT {
             match neighbor(v, &i, &j) {
@@ -90,10 +102,9 @@ fn gof(v: &mut Vec<Vec<bool>>) {
     copy(v, &target);
 }
 
-
 impl event::EventHandler<ggez::GameError> for MainState {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
-        self.pos_x = self.pos_x % 800.0 + 0.5;
+        std::thread::sleep(Duration::from_millis(100));
         if self.start {
             self.start = false
         } else {
@@ -110,7 +121,10 @@ impl event::EventHandler<ggez::GameError> for MainState {
         for i in 0..WIDTH {
             for j in 0..HEIGHT {
                 if self.alive[i][j] {
-                    canvas.draw(&self.rect, Vec2::new(0.0 + (i as f32 * 10.0), 0.0 + (j as f32 * 10.0)));
+                    canvas.draw(
+                        &self.rect,
+                        Vec2::new(0.0 + (i as f32 * 10.0), 0.0 + (j as f32 * 10.0)),
+                    );
                 }
             }
         }
@@ -119,16 +133,42 @@ impl event::EventHandler<ggez::GameError> for MainState {
         Ok(())
     }
 
-    fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, _repeated: bool) -> Result<(), GameError> {
+    fn key_down_event(
+        &mut self,
+        _ctx: &mut Context,
+        _input: KeyInput,
+        _repeated: bool,
+    ) -> Result<(), GameError> {
         std::process::exit(0);
     }
 }
 
+fn read_config() -> GameResult<Config> {
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        return Err(GameError::ConfigError(
+            "Incorrect number of arguments".to_string(),
+        ));
+    }
+
+    match fs::read_to_string(args[1].to_string()) {
+        Ok(data) => match toml::from_str(data.as_str()) {
+            Ok(c) => Ok(c),
+            Err(e) => Err(GameError::ConfigError(e.to_string())),
+        },
+        Err(e) => Err(GameError::ConfigError(e.to_string())),
+    }
+}
+
 pub fn main() -> GameResult {
+    let config = read_config()?;
+
     let cb = ggez::ContextBuilder::new("gof", "ggez")
         .window_setup(WindowSetup::default().title("Game of life"))
-        .window_mode(WindowMode::default()
-            .dimensions(1024.0, 768.0));
+        .window_mode(
+            WindowMode::default()
+                .dimensions(config.graphics.width as f32, config.graphics.height as f32),
+        );
     let (mut ctx, event_loop) = cb.build()?;
     let state = MainState::new(&mut ctx)?;
     event::run(ctx, event_loop, state)
