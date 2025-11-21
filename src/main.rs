@@ -3,23 +3,20 @@
 
 mod config;
 
-use crate::config::Config;
+use crate::config::{Config, Data};
 use ggez::conf::{WindowMode, WindowSetup};
 use ggez::graphics::Rect;
 use ggez::input::keyboard::KeyInput;
 use ggez::{
-    event,
+    Context, GameError, GameResult, event,
     glam::*,
     graphics::{self, Color},
-    Context, GameError, GameResult,
 };
-use rand::Rng;
 use std::time::Duration;
 use std::{env, fs};
 
 const WIDTH: usize = 80;
 const HEIGHT: usize = 60;
-const FILL_RATE: f32 = 35.0;
 
 struct MainState {
     rect: graphics::Mesh,
@@ -28,15 +25,20 @@ struct MainState {
 }
 
 impl MainState {
-    fn new(ctx: &mut Context) -> GameResult<MainState> {
+    fn new(ctx: &mut Context, config: &Config) -> GameResult<MainState> {
         let rect = graphics::Mesh::new_rectangle(
             ctx,
             graphics::DrawMode::fill(),
-            Rect::new_i32(0, 0, 10, 10),
+            Rect::new_i32(
+                0,
+                0,
+                config.graphics.cube_size as i32,
+                config.graphics.cube_size as i32,
+            ),
             Color::WHITE,
         )?;
         let mut v = vec![vec![false; HEIGHT]; WIDTH];
-        init(&mut v);
+        init(&mut v, &config.data);
         Ok(MainState {
             rect,
             alive: v,
@@ -45,20 +47,10 @@ impl MainState {
     }
 }
 
-fn init(v: &mut Vec<Vec<bool>>) {
-    // let mut rng = rand::thread_rng();
-    // for i in 0..WIDTH {
-    //     for j in 0..HEIGHT {
-    //         v[i][j] = rng.gen::<f32>() < FILL_RATE / 100.0;
-    //     }
-    // }
-    v[40][30] = true;
-    v[40][31] = true;
-    v[40][32] = true;
-    v[41][32] = true;
-    v[42][32] = true;
-    v[42][31] = true;
-    v[42][30] = true;
+fn init(v: &mut Vec<Vec<bool>>, data: &Data) {
+    data.values.iter().for_each(|row| {
+        v[row.0 as usize][row.1 as usize] = true;
+    })
 }
 
 fn copy(v: &mut Vec<Vec<bool>>, src: &Vec<Vec<bool>>) {
@@ -117,7 +109,6 @@ impl event::EventHandler<ggez::GameError> for MainState {
         let mut canvas =
             graphics::Canvas::from_frame(ctx, graphics::Color::from([0.1, 0.2, 0.3, 1.0]));
 
-        // canvas.draw(&self.circle, Vec2::new(self.pos_x, 380.0));
         for i in 0..WIDTH {
             for j in 0..HEIGHT {
                 if self.alive[i][j] {
@@ -170,6 +161,6 @@ pub fn main() -> GameResult {
                 .dimensions(config.graphics.width as f32, config.graphics.height as f32),
         );
     let (mut ctx, event_loop) = cb.build()?;
-    let state = MainState::new(&mut ctx)?;
+    let state = MainState::new(&mut ctx, &config)?;
     event::run(ctx, event_loop, state)
 }

@@ -1,4 +1,7 @@
 [graphics]
 width = 1024
 height = 768
-cube_size = 20
+cube_size = 5
+
+[data]
+values = [[40, 30], [40, 31], [40, 32], [41, 32], [42, 32], [42, 31], [42, 30]]
