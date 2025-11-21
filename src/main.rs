@@ -142,13 +142,8 @@ fn read_config() -> GameResult<Config> {
         ));
     }
 
-    match fs::read_to_string(args[1].to_string()) {
-        Ok(data) => match toml::from_str(data.as_str()) {
-            Ok(c) => Ok(c),
-            Err(e) => Err(GameError::ConfigError(e.to_string())),
-        },
-        Err(e) => Err(GameError::ConfigError(e.to_string())),
-    }
+    let data = fs::read_to_string(&args[1]).map_err(|e| GameError::ConfigError(e.to_string()))?;
+    toml::from_str(&data).map_err(|e| GameError::ConfigError(e.to_string()))
 }
 
 pub fn main() -> GameResult {
